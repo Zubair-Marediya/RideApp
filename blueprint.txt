@@ -1,0 +1,21 @@
+Boot up: Ask for username and password
+
+Makes new ride session
+
+Ask to send out texts -> Sends out texts to riders and drivers on SQL DBs using SMSGateway
+    -Asks to send out texts (riders) and sends out texts (drivers) and when to compile results
+        -Asks riders if they want to go
+        -Asks drivers if they can drive and (and next - 2) what time they must leave
+
+When compiling texts:
+    -Looks through all texts from when the first text was sent out to the cut-off time for all texts responding with "YES" from riders
+    -Looks through all texts from when the first text was sent out to the cut-off time for all texts responding with "YES" from drivers
+    -Determine how many cars are needed and place them according to where the people live.
+    -Shows results to user
+    -***Allows for extra drivers or riders to be added to system*** If this, go back to bullet #3.
+    -Asks to send out ride texts using SMSGateway
+        -Text says where the ride will meet you, at what time, who the driver is, and who else is in the car.
+    -Ends current ride session.
+
+Additional features:
+Consider storing all data from each ride session. We can possibly use this data (such as which students come often, where they usually get picked up, how often a driver gives rides) in the future to make the app fully automated. Perhaps we can use machine learning to predict rider & student combos. But this is a very long-term goal, which will require the buildup of data over time.
