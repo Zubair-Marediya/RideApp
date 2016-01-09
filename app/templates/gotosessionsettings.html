@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {margin:0;}
+
+ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #333;
+    position: fixed;
+    top: 0;
+    width: 100%;
+}
+
+li {
+    float: left;
+}
+
+li a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+
+li a:hover:not(.active) {
+    background-color: #111;
+}
+
+.active {
+    background-color: #4CAF50;
+}
+</style>
+</head>
+<body>
+
+<ul>
+  <li><a href="#home">Home</a></li>
+  <li><a class="active" href="/newsession">Create a New Session</a></li>
+  <li><a href="#databasemgmt">Database Management</a></li>
+  <li><a href="#existingsession">Go to an existing session</a></li>
+</ul>
+
+<div style="padding:20px;margin-top:30px;background-color:#ffffff;height:1000px;">
+
+<h1>Please set your session settings.</h1>
+<br>
+
+    <form action="" method="post">
+        <table>
+            <tr>
+                <td>Text to be sent out to riders:</td>
+                <td><textarea name="riderstxt" rows="4" cols="50"></textarea></td>
+            </tr>
+            <tr>
+                <td>Text to be sent out to drivers:</td>
+                <td><textarea name="driverstxt" rows="4" cols="50"></textarea></td>
+            </tr>
+            <tr>
+                <td>When should texts be compiled:</td>
+                <td><input type="datetime-local" name="timedateclose" value={{timedate}}></td>
+            </tr>
+            <tr>
+                <td>Special Requests Active:</td>
+                <td>
+                    <input type="checkbox" name="diffplace" value="I need to be picked up at a different place. (1)" checked> I need to be picked up at a different place.
+                    <br>
+                    <input type="checkbox" name="latesttime" value="I need to be picked up at the latest time possible. (Please be courteous.) (2)" checked> I need to be picked up at the latest time possible.
+                    <br>
+                    <input type="checkbox" name="ridethere" value="I only need a ride there. (3)" checked> I only need a ride there.
+                    <br>
+                    <input type="checkbox" name="rideback" value="I only need a ride back. (4)" checked> I only need a ride back.
+                </td>
+            </tr>
+        </table>
+        <input type="submit" value="Submit">
+    </form>
+
+
+
+</form>
+</div>
+
+</body>
+</html>

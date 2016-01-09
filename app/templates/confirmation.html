@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {margin:0;}
+
+ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #333;
+    position: fixed;
+    top: 0;
+    width: 100%;
+}
+
+li {
+    float: left;
+}
+
+li a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+
+li a:hover:not(.active) {
+    background-color: #111;
+}
+
+.active {
+    background-color: #4CAF50;
+}
+
+.totheleft {
+  float:left;
+  margin-right: 100px;
+}
+
+#googleMap {
+  margin-top: 30px;
+}
+
+</style>
+<script src="http://maps.googleapis.com/maps/api/js"></script>
+<script>
+var myCenter=new google.maps.LatLng(37.865129, -122.258415);
+function initialize() {
+  var mapProp = {
+    center:myCenter,
+    zoom:14,
+    mapTypeId:google.maps.MapTypeId.ROADMAP
+  };
+  var map=new google.maps.Map(document.getElementById("googleMap"),mapProp);
+  var marker=new google.maps.Marker({
+  position:myCenter,
+  });
+
+marker.setMap(map);
+}
+google.maps.event.addDomListener(window, 'load', initialize);
+</script>
+</head>
+<body>
+
+<ul>
+  <li><a href="/userdashboard">Home</a></li>
+  <li><a class="active" href="/newsession">Create a New Session</a></li>
+  <li><a href="#databasemgmt">Database Management</a></li>
+  <li><a href="#existingsession">Go to an existing session</a></li>
+</ul>
+
+<div style="padding:20px;margin-top:30px;background-color:#ffffff;height:1000px;">
+  <div class="totheleft">
+    <h1>Here's who's coming!</h1>
+    <p>Riders:</p>
+    <p>{{riders}}</p>
+    <p>Drivers:</p>
+    <p>{{drivers}}</p>
+    <p>{{suggestions}}</p>
+  </div>
+  <div align="right" id="googleMap" style="width:500px;height:380px;">
+  </div>
+</div>
+<!-- GOOGLE MAPS API -->
+
+</body>
+</html>
