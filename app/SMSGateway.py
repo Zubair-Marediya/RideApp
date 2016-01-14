@@ -16,4 +16,10 @@ def receive():
 	response = requests.get("http://smsgateway.me/api/v3/messages?email=adnan.h@berkeley.edu&password=abcd1234")
 	return response.content
 
+def normalizenumber(number):
+	if "+1" in number:
+		number = number[2:]
+	number = int(number)
+	return number
+
 #Google Maps API Key: AIzaSyBOxAw53OouSgBi7TDgbP45GRu2z8HXC4g

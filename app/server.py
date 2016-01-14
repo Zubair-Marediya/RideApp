@@ -6,7 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 import datetime
 import time
 import requests
-from SMSGateway import send, receive
+from SMSGateway import send, receive, normalizenumber
 import json
 
 app = Flask(__name__)
@@ -66,6 +66,8 @@ def badlogin():
         return redirect("/badlogin")
     else:
         login_user(registered_user)
+        user_id = registered_user.id
+        global user_id
         return redirect("/userdashboard")
 
 
@@ -92,15 +94,8 @@ def newsessionsettings():
     driverstxt = request.form.get("driverstxt")
     riderstxt = request.form.get("riderstxt")
     timedateclose = request.form.get("timedateclose")
-    checkboxeslst = request.form.getlist("diffplace") + request.form.getlist("latesttime") + request.form.getlist("ridethere") + request.form.getlist("rideback")
+    checkboxeslst = request.form.getlist("diffplace")[0].encode("ascii") + ", " + request.form.getlist("latesttime")[0].encode("ascii") + ", " + request.form.getlist("ridethere")[0].encode("ascii") + ", " + request.form.getlist("rideback")[0].encode("ascii")
     global driverstxt, riderstxt, timedateclose, checkboxeslst
-    return redirect("newsession/waiting")
-
-@app.route("/newsession/waiting", methods=["POST","GET"])
-@login_required
-def waitingscreen():
-    #SEND OUT RIDER TEXTS
-    newfeedingtime = timedateclose[:10] + ", " + timedateclose[11:]
     r = models.Riders.query.filter_by(user_id=user_id).all()
     riderphlst = []
     for rider in r:
@@ -114,84 +109,108 @@ def waitingscreen():
         driverph = int(driver.driver_phone_number)
         driverphlst.append(driverph)
         send(driverph, driverstxt)
+    global driverphlst, riderphlst
+    return redirect("newsession/waiting")
 
-    #put while loop (while less than timedateclose), keep querrying msgs and then send out responses to .the ones that are the ones you want.
-    t = (int(timedateclose[:4]),int(timedateclose[5:7]), int(timedateclose[8:10]), int(timedateclose[11:13]), int(timedateclose[14:]), 
-        0, datetime.datetime.today().weekday(), datetime.datetime.now().timetuple().tm_yday, -1)
-    timeclose = time.mktime(t)
-
-    current_time = int(time.time())
-    firsttextyes = [{"riders": []}, {"drivers": []}]
-    while current_time <= timeclose:
-        all_texts = json.loads(receive())
-        lastcheckedtime = int(time.time())
-        for text in all_texts["result"]:
-            while text["received_at"] >= lastcheckedtime or text["received_at"] == 0:
-                if ("yes" in text["message"].lower) and (text["status"] == "received") and (text["contact"]["number"] not in firsttextyes[0]["riders"]) and (text["contact"]["number"] not in firsttextyes[1]["drivers"]):
-                    if text["contact"]["number"] in driverphlst:
-                        send(text["contact"]["number"], "What time would you be leaving? (Give the latest possible time please in a 24-hour clock format. E.g. 7 pm = 19:00)")
-                        firsttextyes[1]["drivers"].append(text["contact"]["number"])
-                    if text["contact"]["number"] in riderphlst:
-                        send(text["contact"]["number"], "Do you require any of these special accommodations? Please respond with the the number associated with all of the options that apply." + str(checkboxeslst))
-                        firsttextyes[0]["riders"].append(text["contact"]["number"])
-                if text["contact"]["number"] in firsttextyes[0]["riders"]:
-                    #Check for special requests and then add to TempDB
-                    riderspecialreqs = []
-                    if "1" in text["result"]["message"].lower:
-                        riderspecialreqs.append(1)
-                    if "2" in text["result"]["message"].lower:
-                        riderspecialreqs.append(2)
-                    if "3" in text["result"]["message"].lower:
-                        riderspecialreqs.append(3)
-                    if "4" in text["result"]["message"].lower:
-                        riderspecialreqs.append(4)
-                    #Find user info and append to Todaystableriders
-                    ridernumber = text["result"]["contact"]["number"]
-                    if "+1" in ridernumber:
-                        ridernumber = ridernumber[2:]
-                    rider = models.Riders.query.filter_by(user_id=user_id, rider_phone_number=ridernumber).first()
-                    thisrider = models.Todaystableriders(name=rider.rider_name, phone_number=rider.rider_phone_number, res_latitude=rider.rider_residence_latitude, res_longitude=rider.rider_residence_longitude, special_requests=str(specialreqs))
-                    db.session.add(thisrider)
-                    db.session.commit()
-                if text["contact"]["number"] in firsttextyes[1]["drivers"]:
-                    #Note down time leaving and then add to Todaystabledrivers
-                    try:
-                        t= timedate.time(text["message"][:2], text["message"][3:])
-                    except ValueError:
-                        try:
-                            t = timedate.time(text["message"][:1], text["message"][2:])
-                        except ValueError:
-                            send(text["contact"]["number"], "This is not a valid time format. Please respond with the latest time you will be leaving in a 24-hour clock format.")
-                            break
-                        else:
-                            drivernumber = text["contact"]["number"]
-                            if "+1" in drivernumber:
-                                drivernumber = drivernumber[2:]
-                            driver = models.Drivers.query.filter_by(user_id=user_id, driver_phone_number=drivernumber).first()
-                            thisdriver = models.Todaystabledrivers(name=driver.driver_name, phone_number=driver.driver_phone_number, res_latitude=driver.driver_residence_latitude, res_longitude=driver.driver_residence_longitude, time_leaving=text["message"])
-                            db.session.add(thisdriver)
-                            db.session.commit()
-                    else:
-                        drivernumber = text["contact"]["number"]
-                        if "+1" in drivernumber:
-                            drivernumber = drivernumber[2:]
-                        driver = models.Drivers.query.filter_by(user_id=user_id, driver_phone_number=drivernumber).first()
-                        thisdriver = models.Todaystabledrivers(name=driver.driver_name, phone_number=driver.driver_phone_number, res_latitude=driver.driver_residence_latitude, res_longitude=driver.driver_residence_longitude, time_leaving=text["message"])
-                        db.session.add(thisdriver)
-                        db.session.commit()
-            break
-        #program to sleep and then change current_time AND REPEAT
-        time.sleep(45)
-        current_time = int(time.time())
-
+@app.route("/newsession/waiting", methods=["POST","GET"])
+@login_required
+def waitingscreen():
+    #SEND OUT RIDER TEXTS
+    newfeedingtime = timedateclose[:10] + ", " + timedateclose[11:]
     if request.method == "GET":
-        return render_template("waitingscreen.html", drivetxt=driverstxt, ridertxt=riderstxt, timedateclose=newfeedingtime, specialreqs=checkboxeslst)
+    	return render_template("waitingscreen.html", drivetxt=driverstxt, ridertxt=riderstxt, timedateclose=newfeedingtime, specialreqs=str(checkboxeslst).encode("ascii"))
+    elif request.method == "POST":
+	    t = (int(timedateclose[:4]),int(timedateclose[5:7]), int(timedateclose[8:10]), int(timedateclose[11:13]), int(timedateclose[14:]), 
+	        0, datetime.datetime.today().weekday(), datetime.datetime.now().timetuple().tm_yday, -1)
+	    timeclose = time.mktime(t)
+
+	    current_time = int(time.time())
+	    firsttextyes = [{"riders": []}, {"drivers": []}]
+	    while current_time <= timeclose:
+	        time.sleep(30)
+	        all_texts = json.loads(receive())
+	        lastcheckedtime = 0
+	        n = 0
+	        while not lastcheckedtime:
+	        	lastcheckedtime = all_texts["result"][n]["sent_at"]
+	        	n += 1
+	        assert lastcheckedtime != 0, all_texts["result"][0]["status"]
+	        for text in all_texts["result"]:
+	            phone_number = normalizenumber(text["contact"]["number"])
+	            #assert text["received_at"] >= lastcheckedtime, "recieved at " + str(text["received_at"]) + " lastcheckedtime " + str(lastcheckedtime)
+	            if text["received_at"] >= lastcheckedtime or text["received_at"] == 0: #out-of-order by about 5 hrs (behind)
+	            	if text["status"] == "received":
+	            		confirmedriders = models.Todaystableriders.query.filter_by(phone_number=str(phone_number)).all()
+	        			confirmeddrivers = models.Todaystabledrivers.query.filter_by(phone_number=str(phone_number)).all()
+	        			if confirmeddrivers == [] or confirmedriders == []:
+	        				pass
+		                #assert text["message"].lower() == "yes", text["message"] + " id: " + str(text["id"])
+		                elif "yes" in text["message"].lower() and phone_number not in firsttextyes[0]["riders"] and phone_number not in firsttextyes[1]["drivers"]:
+		                	if phone_number in driverphlst:
+		                		send(phone_number, "What time would you be leaving? (Give the latest possible time please in a 24-hour clock format. E.g. 7 pm = 19:00)")
+		                		firsttextyes[1]["drivers"].append(phone_number)
+		                	if phone_number in riderphlst:
+		                		send(phone_number, "Do you require any of these special accommodations?" + " " + str(checkboxeslst).encode("ascii"))
+		                		firsttextyes[0]["riders"].append(phone_number)
+		                elif phone_number in firsttextyes[0]["riders"]:
+		                    #Check for special requests and then add to TempDB
+		                    riderspecialreqs = []
+		                    if "1" in text["message"].lower():
+		                        riderspecialreqs.append(1)
+		                    if "2" in text["message"].lower():
+		                        riderspecialreqs.append(2)
+		                    if "3" in text["message"].lower():
+		                        riderspecialreqs.append(3)
+		                    if "4" in text["message"].lower():
+		                        riderspecialreqs.append(4)
+		                    if "no" in text["message"].lower():
+		                    	riderspecialreqs.append("No")
+		                    #Find user info and append to Todaystableriders
+		                    assert riderspecialreqs != [], "Must have one of the above options."
+		                    rider = models.Riders.query.filter_by(user_id=user_id, rider_phone_number=str(phone_number)).first()
+		                    thisrider = models.Todaystableriders(name=rider.rider_name, phone_number=rider.rider_phone_number, res_latitude=rider.rider_residence_latitude, res_longitude=rider.rider_residence_longitude, special_requests=str(riderspecialreqs))
+		                    db.session.add(thisrider)
+		                    db.session.commit()
+		                    send(phone_number, "Thanks! Youve been added to todays ride list. Please contact us at 5:00 pm if you havent received your ride assignment.")															
+		                elif phone_number in firsttextyes[1]["drivers"]:
+		                    #Note down time leaving and then add to Todaystabledrivers
+		                    try:
+		                        t= timedate.time(text["message"][:2], text["message"][3:])
+		                    except ValueError:
+		                        try:
+		                            t = timedate.time(text["message"][:1], text["message"][2:])
+		                        except ValueError:
+		                            send(phone_number, "This is not a valid time format. Please respond with the latest time you will be leaving in a 24-hour clock format.")
+		                            break
+		                        else:
+		                            driver = models.Drivers.query.filter_by(user_id=user_id, driver_phone_number=str(phone_number)).first()
+		                            thisdriver = models.Todaystabledrivers(name=driver.driver_name, phone_number=driver.driver_phone_number, res_latitude=driver.driver_residence_latitude, res_longitude=driver.driver_residence_longitude, time_leaving=text["message"])
+		                            db.session.add(thisdriver)
+		                            db.session.commit()
+		                            send(phone_number, "Thanks! Youve been added to today's ride list. Please contact us at 5:00 pm if you havent received your ride assignment.")							
+		                    else:
+		                        driver = models.Drivers.query.filter_by(user_id=user_id, driver_phone_number=str(phone_number)).first()
+		                        thisdriver = models.Todaystabledrivers(name=driver.driver_name, phone_number=driver.driver_phone_number, res_latitude=driver.driver_residence_latitude, res_longitude=driver.driver_residence_longitude, time_leaving=text["message"])
+		                        db.session.add(thisdriver)
+		                        db.session.commit()
+		                        send(phone_number, "Thanks! Youve been added to today's ride list. Please contact us at 5:00 pm if you havent received your ride assignment.")
+	            else:
+	            	break
+
+	            	#return render_template("waitingscreen.html", drivetxt=current_time, timedateclose=lastcheckedtime, ridertxt=text["message"], specialreqs=text["received_at"])
+	        #     else:
+	        #     	return render_template("waitingscreen.html", drivetxt=current_time, timedateclose=timeclose, ridertxt=text["message"])
+	        # #program to sleep and then change current_time AND REPEAT
+	        #time.sleep(45)
+	        current_time = int(time.time())
+	    return redirect("/newsession/confirmation")
+
     #REDIRECT TO NEXT PAGE
-    return redirect("/newsession/confirmation")
 
 @app.route("/newsession/confirmation", methods=["GET"])
 @login_required
 def confirmation():
+    #put while loop (while less than timedateclose), keep querrying msgs and then send out responses to .the ones that are the ones you want.
     if request.method == "GET":
         return render_template("confirmation.html")
 
